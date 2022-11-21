@@ -127,6 +127,8 @@ def import_mb_pvpro5():
     df_table = pd.DataFrame()
     for file in tqdm(files):
         date = file.split(sep='PVpro_5_')[1][:10]
+        if date in ['2022-07-14', '2022-07-15']:
+            continue
         with open(file) as f:
             data = json.load(f)
         df = pd.DataFrame(data.get('data_xmin'))

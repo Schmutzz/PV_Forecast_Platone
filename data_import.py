@@ -121,7 +121,6 @@ def import_mb_pvpro4():
     df_table.to_sql('mb_pvpro_1h', con=conn)
 
 
-# TODO: pvpro_5 doppelte daten?
 def import_mb_pvpro5():
     folder = 'MB-pvpro_5'
     files = [f'{folders_path}/{folder}/{f}' for f in listdir(f'{folders_path}/{folder}')]
@@ -139,3 +138,4 @@ def import_mb_pvpro5():
     df_table.to_sql('mb_pvpro_15min', con=conn)
 
 
+import_mb_pvpro5()

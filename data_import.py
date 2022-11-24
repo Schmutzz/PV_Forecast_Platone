@@ -4,6 +4,7 @@ import sqlite3
 from sqlalchemy import create_engine
 from tqdm import tqdm
 import json
+import requests
 
 engine = create_engine('sqlite://', echo=False)
 
@@ -15,7 +16,7 @@ c = conn.cursor()
 def import_baseline():
     baseline_path = '/eIOT-iONS_baseline/PTEI_Baseline_1_Minutes_Mean_2022.csv'
     df_baseline = pd.read_csv(f'{folders_path}{baseline_path}', sep=';', decimal=',', skiprows=[1])
-    df_baseline['Timestamp'] = pd.to_datetime(df_baseline['Timestamp'], format='%Y-%m-%d %H:%M:%S')
+    df_baseline['Timestamp'] = pd.to_datetime(df_baseline['Timestamp'], format='%Y-%m-%df %H:%M:%S')
     df_baseline.set_index('Timestamp', inplace=True)
     df_baseline.rename(columns={'PTEI - Baseline (Calculated) - 1-Minutes Mean': 'Baseline in kW'}, inplace=True)
     df_baseline.to_sql('baseline', con=conn)
@@ -24,7 +25,7 @@ def import_baseline():
 def import_slp():
     slp_path = '/standard-load-profile/tshouseholdUTC2022.csv'
     df_slp = pd.read_csv(f'{folders_path}{slp_path}', sep=',', decimal='.')
-    df_slp['Timestamp'] = pd.to_datetime(df_slp['RowKey'].str[:-6], format='%Y-%m-%d %H:%M:%S')
+    df_slp['Timestamp'] = pd.to_datetime(df_slp['RowKey'].str[:-6], format='%Y-%m-%df %H:%M:%S')
     df_slp.drop(columns=['RowKey'], inplace=True)
     df_slp.set_index('Timestamp', inplace=True)
     df_slp.to_sql('slp', con=conn)
@@ -36,7 +37,7 @@ def import_households():
     df_table = pd.DataFrame(columns=['Timestamp'])
     for file in files:
         df = pd.read_csv(file, sep=',', decimal='.', skiprows=1)
-        df['Timestamp'] = pd.to_datetime(df['Timestamp'], format='%Y-%m-%d %H:%M:%S')
+        df['Timestamp'] = pd.to_datetime(df['Timestamp'], format='%Y-%m-%df %H:%M:%S')
         df_table = pd.merge(df_table, df, on='Timestamp', how='outer')
     # only use dates with data for all households
     df_table.dropna(inplace=True)
@@ -140,4 +141,21 @@ def import_mb_pvpro5():
     df_table.to_sql('mb_pvpro_15min', con=conn)
 
 
-import_mb_pvpro5()
+def import_wunderground():
+    api_key = 'b2d5c5b846d9403595c5b846d99035ee'
+    result_df = pd.DataFrame()
+
+    for date in tqdm(pd.date_range(start='2022-05-01', end='2022-11-15').tolist()):
+        date = f'{date.year}{date.month:02d}{date.day:02d}'
+        url = f'https://api.weather.com/v2/pws/history/all?stationId=ITWIST40&format=json&units=m&date={date}&apiKey={api_key}'
+        json_obj = json.loads(requests.get(url=url).text)
+
+        for step in json_obj.get('observations'):
+            new_row = {'Date': step.get('obsTimeLocal'),
+                       'solar_radiation': step.get('solarRadiationHigh'),
+                       'avg_wind_dir': step.get('winddirAvg')}
+            new_row.update(step.get('metric'))
+            result_df = pd.concat([result_df, pd.DataFrame(new_row, index=[0])], ignore_index=True)
+
+    result_df['Date'] = pd.to_datetime(result_df['Date'], format='%Y-%m-%d %H:%M:%S')
+    result_df.to_sql('wunderground_historical', con=conn)

@@ -147,7 +147,7 @@ def import_wunderground():
 
     for date in tqdm(pd.date_range(start='2022-05-01', end='2022-11-15').tolist()):
         date = f'{date.year}{date.month:02d}{date.day:02d}'
-        url = f'https://api.weather.com/v2/pws/history/all?stationId=ITWIST40&format=json&units=m&date={date}&apiKey={api_key}'
+        url = f'https://api.weather.com/v2/pws/history/all?stationId=ITWIST25&format=json&units=m&date={date}&apiKey={api_key}'
         json_obj = json.loads(requests.get(url=url).text)
 
         for step in json_obj.get('observations'):
@@ -158,4 +158,6 @@ def import_wunderground():
             result_df = pd.concat([result_df, pd.DataFrame(new_row, index=[0])], ignore_index=True)
 
     result_df['Date'] = pd.to_datetime(result_df['Date'], format='%Y-%m-%d %H:%M:%S')
-    result_df.to_sql('wunderground_historical', con=conn)
+    result_df.to_sql('wunderground_historical_25', con=conn)
+
+import_wunderground()

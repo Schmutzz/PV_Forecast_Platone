@@ -1,3 +1,4 @@
+import time
 from os import listdir
 import pandas as pd
 import sqlite3
@@ -145,24 +146,31 @@ def import_wunderground():
     api_key = 'b2d5c5b846d9403595c5b846d99035ee'
     result_df = pd.DataFrame()
 
-    for date in tqdm(pd.date_range(start='2022-05-01', end='2022-11-16').tolist()):
+    for date in tqdm(pd.date_range(start='2021-01-01', end='2022-11-30').tolist()):
         date = f'{date.year}{date.month:02d}{date.day:02d}'
         url = f'https://api.weather.com/v2/pws/history/all?stationId=ITWIST25&format=json&units=m&date={date}&apiKey={api_key}'
-        try:
-            json_obj = json.loads(requests.get(url=url).text)
 
-            for step in json_obj.get('observations'):
-                new_row = {'Date': step.get('obsTimeUtc'),
-                           'solar_radiation': step.get('solarRadiationHigh'),
-                           'avg_wind_dir': step.get('winddirAvg')}
-                new_row.update(step.get('metric'))
-                result_df = pd.concat([result_df, pd.DataFrame(new_row, index=[0])], ignore_index=True)
-        except json.JSONDecodeError:
-            break
+        # try api call until successful
+        while True:
+            try:
+                json_obj = json.loads(requests.get(url=url).text)
+                for step in json_obj.get('observations'):
+                    new_row = {'Date': step.get('obsTimeUtc'),
+                               'solar_radiation': step.get('solarRadiationHigh'),
+                               'avg_wind_dir': step.get('winddirAvg')}
+                    new_row.update(step.get('metric'))
+                    result_df = pd.concat([result_df, pd.DataFrame(new_row, index=[0])], ignore_index=True)
+                # if successful api call -> break inner loop (next day)
+                break
+            except json.JSONDecodeError:
+                # if api call failed -> wait 10 seconds and retry same day
+                print(f'Date: {date} - sleep...')
+                time.sleep(10)
+                continue
 
     result_df['Date'] = pd.to_datetime(result_df['Date'], format='%Y-%m-%d %H:%M:%S')
     result_df['Date'] = result_df['Date'].dt.tz_localize(None)
-    result_df.to_sql('wunderground_historical_25', con=conn, if_exists='append')
+    result_df.to_sql('wunderground_historical_43_long', con=conn, if_exists='append')
 
 
 import_wunderground()

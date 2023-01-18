@@ -9,7 +9,7 @@ import requests
 
 engine = create_engine('sqlite://', echo=False)
 
-folders_path = 'C:/Users/bo112/E.ON/Platone HAW groupwork - raw data'
+folders_path = 'C:/Users/bo112/haw-hamburg.de/Bachelorprojekt Platone - General/Datenaustausch eon/'
 conn = sqlite3.connect('data/input_data.db')
 c = conn.cursor()
 
@@ -33,12 +33,13 @@ def import_slp():
 
 
 def import_households():
-    folder = 'household-batteries'
+    # folder = 'household-batteries'
+    folder = 'PV Generation (2)'
     files = [f'{folders_path}/{folder}/{f}' for f in listdir(f'{folders_path}/{folder}')]
     df_table = pd.DataFrame(columns=['Timestamp'])
     for file in files:
-        df = pd.read_csv(file, sep=',', decimal='.', skiprows=1)
-        df['Timestamp'] = pd.to_datetime(df['Timestamp'], format='%Y-%m-%df %H:%M:%S')
+        df = pd.read_csv(file, sep=',', decimal='.', skiprows=0)
+        df['Timestamp'] = pd.to_datetime(df['Timestamp'], format='%Y-%m-%d %H:%M:%S')
         df_table = pd.merge(df_table, df, on='Timestamp', how='outer')
     # only use dates with data for all households
     df_table.dropna(inplace=True)
@@ -46,8 +47,12 @@ def import_households():
     df_table.to_sql('household_batteries', con=conn)
 
 
+# import_households()
+
+
 def import_mb_basic():
-    folder = 'MB-basic'
+    # folder = 'MB-basic'
+    folder = 'basic'
     files = [f'{folders_path}/{folder}/{f}' for f in listdir(f'{folders_path}/{folder}')]
     df_table = pd.DataFrame()
     for file in tqdm(files):
@@ -58,7 +63,10 @@ def import_mb_basic():
         df.drop(columns=['time'], inplace=True)
         df.set_index('Timestamp', inplace=True)
         df_table = pd.concat([df_table, df])
-    df_table.to_sql('mb_basic', con=conn)
+    df_table.to_sql('mb_basic', con=conn, if_exists='append')
+
+
+# import_mb_basic()
 
 
 def import_mb_clouds():
@@ -77,7 +85,8 @@ def import_mb_clouds():
 
 
 def import_mb_solar():
-    folder = 'MB-solar'
+    # folder = 'MB-solar'
+    folder = 'solar'
     files = [f'{folders_path}/{folder}/{f}' for f in listdir(f'{folders_path}/{folder}')]
     df_table = pd.DataFrame()
     for file in tqdm(files):
@@ -88,11 +97,15 @@ def import_mb_solar():
         df.drop(columns=['time'], inplace=True)
         df.set_index('Timestamp', inplace=True)
         df_table = pd.concat([df_table, df])
-    df_table.to_sql('mb_solar', con=conn)
+    df_table.to_sql('mb_solar', con=conn, if_exists='append')
+
+
+# import_mb_solar()
 
 
 def import_mb_sunmoon():
-    folder = 'MB-sunmoon'
+    # folder = 'MB-sunmoon'
+    folder = 'sunmoon'
     files = [f'{folders_path}/{folder}/{f}' for f in listdir(f'{folders_path}/{folder}')]
     df_table = pd.DataFrame()
     for file in tqdm(files):
@@ -103,7 +116,10 @@ def import_mb_sunmoon():
         df.drop(columns=['time'], inplace=True)
         df.set_index('Timestamp', inplace=True)
         df_table = pd.concat([df_table, df])
-    df_table.to_sql('mb_sunmoon', con=conn)
+    df_table.to_sql('mb_sunmoon', con=conn, if_exists='append')
+
+
+# import_mb_sunmoon()
 
 
 def import_mb_pvpro4():
@@ -139,16 +155,19 @@ def import_mb_pvpro5():
         df.drop(columns=['time'], inplace=True)
         df.set_index('Timestamp', inplace=True)
         df_table = pd.concat([df_table, df])
-    df_table.to_sql('mb_pvpro_15min', con=conn)
+    df_table.to_sql('mb_pvpro_15min', con=conn, if_exists='append')
+
+
+# import_mb_pvpro5()
 
 
 def import_wunderground():
     api_key = 'b2d5c5b846d9403595c5b846d99035ee'
     result_df = pd.DataFrame()
 
-    for date in tqdm(pd.date_range(start='2021-01-01', end='2022-11-30').tolist()):
+    for date in tqdm(pd.date_range(start='2021-11-01', end='2022-12-30').tolist()):
         date = f'{date.year}{date.month:02d}{date.day:02d}'
-        url = f'https://api.weather.com/v2/pws/history/all?stationId=ITWIST25&format=json&units=m&date={date}&apiKey={api_key}'
+        url = f'https://api.weather.com/v2/pws/history/all?stationId=ITWIST40&format=json&units=m&date={date}&apiKey={api_key}'
 
         # try api call until successful
         while True:
@@ -170,7 +189,9 @@ def import_wunderground():
 
     result_df['Date'] = pd.to_datetime(result_df['Date'], format='%Y-%m-%d %H:%M:%S')
     result_df['Date'] = result_df['Date'].dt.tz_localize(None)
-    result_df.to_sql('wunderground_historical_43_long', con=conn, if_exists='append')
+    result_df.to_sql('wunderground_historical_40', con=conn, if_exists='append')
 
 
 import_wunderground()
+
+
